@@ -25,14 +25,14 @@ class Model:
         # group by country over the years
         self.agg_df=deepcopy(df)
         del self.agg_df['year']
-        self.agg_df=self.agg_df.groupby('country').agg(np.mean)
+        self.agg_df=self.agg_df.groupby('country', as_index=False).agg(np.mean)
     def cluster (self):
         # need to accept from GUI
         k=3
         i=4
         cluster=KMeans(n_clusters=k,init="random",n_init=i)
-        self.agg_df['cluster']=cluster.fit_predict(self.agg_df)
-        print(self.agg_df)
+        self.agg_df['cluster']=cluster.fit_predict(self.agg_df[self.agg_df.columns[1:]])
+      #  print(self.agg_df)
     def scatter(self):
         pyplot.scatter(self.agg_df['Generosity'],self.agg_df['Social support'],c=self.agg_df['cluster'])
         pyplot.title('Output for K-Means clustering')
@@ -48,7 +48,7 @@ class Model:
             type = 'choropleth',
             locations = df['country'],
             z = df['cluster'],
-            text = df['COUNTRY'],
+         #   text = df['country'],
             colorscale = [[0,"rgb(5, 10, 172)"],[0.35,"rgb(40, 60, 190)"],[0.5,"rgb(70, 100, 245)"],\
                          [0.6,"rgb(90, 120, 245)"],[0.7,"rgb(106, 137, 247)"],[1,"rgb(220, 220, 220)"]],
             autocolorscale = False,
@@ -62,9 +62,10 @@ class Model:
                 autotick = False,
                 tickprefix = '$',
                 title = 'GDP<br>Billions US$'),
-        ) ]
+        )]
 
-        layout = dict(
+        layout = dict(  plot.iplot(fig, validate=False, filename='world-map')
+
             title = '2014 Global GDP<br>Source:',
             geo = dict(
                 showframe = False,
@@ -75,8 +76,9 @@ class Model:
             )
         )   
         fig = dict( data=data, layout=layout )
-        plot.iplot( fig, validate=False, filename='d3-world-map' )
-       
+        plot.iplot(fig, validate=False, filename='world-map')
+        plot.image.save_as(fig, filename="map.png")
+
 class Clustering:
 
     def __init__(self, master):
@@ -112,7 +114,7 @@ class Clustering:
 model=Model()
 model.preprocess()
 model.cluster()
-model.scatter()
+# model.scatter()
 model.worldMap()
 root = Tk()
 my_gui = Clustering(root)
