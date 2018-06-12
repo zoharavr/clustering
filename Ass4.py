@@ -1,9 +1,18 @@
 from Tkinter import Tk, Label, Button, Entry, IntVar, END, W, E
-
+import pandas as pd
+import numpy as np
 from tkFileDialog import askopenfilename
 
-
-class Calculator:
+class Model:
+# Condiser to put a consructor
+    df=pd.read_excel("data.xlsx")
+    #name of the columns
+    names=list(df)
+    for c_name in names:
+        if c_name!= 'year' and c_name!='country':
+            df[c_name]=df[c_name].fillna(df[c_name].mean(), inplace=False)
+    print(df.head(10))
+class Clustering:
 
     def __init__(self, master):
         self.master = master
@@ -37,5 +46,6 @@ class Calculator:
         self.entry.insert(0,filename)
 
 root = Tk()
-my_gui = Calculator(root)
+my_gui = Clustering(root)
 root.mainloop()
+
