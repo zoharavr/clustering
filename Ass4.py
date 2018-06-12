@@ -6,16 +6,31 @@ from copy import deepcopy
 import matplotlib.pyplot as pyplot
 import plotly.plotly as py
 from tkFileDialog import askopenfilename
+import tkMessageBox
+from PIL import Image,ImageTk
 
 class Model:
-    def __init__(self, master,path, KMeansNumber, run_number):
+    #constructor
+    def __init__(self,path, KMeansNumber, run_number):
         self.KMeansNumber=KMeansNumber
         self.run_number= run_number
         self.path=path
-  # Condiser to put a consructor
+
+    def preValid(self,df): 
+        if  df.empty:
+            tkMessageBox.showerror("K Means Clustering","Please enter a valid file")
+            return False
+        
+        if  len(df.index)<int(self.KMeansNumber):
+            tkMessageBox.showerror("K Means Clustering","Please enter a valid number of clusters")
+            return False  
+        return True  
     def preprocess(self):
         # need to accept path from GUI
         df=pd.read_excel(self.path)
+        # if the data frame is empty signal
+        if (not self.preValid(df)): 
+            return False
         #name of the columns
         names=list(df)
         names.remove('country')
@@ -30,20 +45,21 @@ class Model:
         self.agg_df=deepcopy(df)
         del self.agg_df['year']
         self.agg_df=self.agg_df.groupby('country', as_index=False).agg(np.mean)
+        tkMessageBox.showinfo("K Means Clustering","Preprocessing completed successfully!")
+        return True
+
     def cluster (self):
-        # need to accept from GUI
-        k=self.KMeansNumber
-        i=self.run_number
+        k=int(self.KMeansNumber)
+        i=int(self.run_number)
         cluster=KMeans(n_clusters=k,init="random",n_init=i)
         self.agg_df['cluster']=cluster.fit_predict(self.agg_df[self.agg_df.columns[1:]])
-      #  print(self.agg_df)
     def scatter(self):
         pyplot.scatter(self.agg_df['Generosity'],self.agg_df['Social support'],c=self.agg_df['cluster'])
         pyplot.title('Output for K-Means clustering')
         pyplot.colorbar()
         pyplot.xlabel('Generosity')
         pyplot.ylabel('social_support')
-        pyplot.show()
+        pyplot.savefig('scatter.png')
 
     def worldMap(self):
         py.sign_in(username='yosefmel',api_key='uWFhsUv98ZXLTPWalwqQ')
@@ -88,13 +104,12 @@ class Clustering:
         Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
         self.labelfile = Label(master, text="File:")
         self.entryfile = Entry(master,bd=2)
-        vcmd = master.register(self.validate) # we have to wrap the command
         self.choose_button = Button(master, text="Browse", command=lambda: self.browse())
         self.labelK = Label(master, text="Num of clusters k:")
         self.entryK = Entry(master,bd=2)
         self.labelRun = Label(master, text="Num of runs:")
         self.entryRun = Entry(master,bd=2)
-        self.pre_proc = Button(master, text="Pre-process",command=self.pre_proc)
+        self.pre = Button(master, text="Pre-process",command=self.pre_proc)
         self.cluster = Button(master, text="Cluster",command=self.clustering)
         # LAYOUT
         self.labelfile.grid(row=0, column=0, sticky=W)
@@ -104,29 +119,66 @@ class Clustering:
         self.entryK.grid(row=2, column=1, columnspan=3, sticky=W+E)
         self.labelRun.grid(row=3, column=0, sticky=W)
         self.entryRun.grid(row=3, column=1, columnspan=3, sticky=W+E)
-        self.pre_proc.grid(row=4, column=0)
+        self.pre.grid(row=4, column=0)
         self.cluster.grid(row=4,column=1)
-
-    def clustering (self): 
-        print(1)
-        
-    def validate(self):
-       input1=self.entryK.get("1.0",END)
-       input2=self.entryRun.get("1.0",END)
-       return input1,input2
-
+        self.model=None
     def pre_proc(self):
-        print(self.validate())
-        # model=Model()
-        # model.preprocess()
+        try:
+            input1=self.entryK.get()
+            input2=self.entryRun.get()
+            if self.validate(n1=input1,n2=input2,path=self.path) :
+                self.model=Model(path=self.path,KMeansNumber=input1,run_number=input2)
+                self.cluster['state']='normal'
+                if(not self.model.preprocess()) :
+                    self.cluster['state']='disabled'
 
+        except Exception as error: 
+            tkMessageBox.showerror("Error","path is not exist")
+            self.cluster['state']='disabled'
+    def clustering(self):
+        self.model.cluster()
+        self.model.scatter()
+        self.model.worldMap()
+        self.showImages()
+        tkMessageBox.showinfo("K Means Clustering","Clustering process finished successfully")
+        
+
+    def showImages(self): 
+        im = Image.open("./worldMap.png")
+        resized = im.resize((500, 500), Image.ANTIALIAS)
+        tkimage = ImageTk.PhotoImage(resized)
+        myvar = Label(self.master, image=tkimage)
+        myvar.image = tkimage
+        myvar.grid(row=5, column=4)
+        im2 = Image.open("./scatter.png")
+        resized2 = im2.resize((500, 500), Image.ANTIALIAS)
+        tkimage2 = ImageTk.PhotoImage(resized2)
+        myvar = Label(self.master, image=tkimage2)
+        myvar.image = tkimage2
+        myvar.grid(row=5, column=0)
+        
+
+
+#check if the given inputs are numbers
+    def validate(self,n1,n2,path):
+        if n1.isdigit() !=True  or n2.isdigit()!=True:
+            tkMessageBox.showerror("K Means Clustering","Please enter positive numbers")
+            self.cluster['state']='disabled'
+            return False
+        if not path:
+            tkMessageBox.showerror("K Means Clustering","Please browse a file")
+            self.cluster['state']='disabled'
+            return False
+        if not  path.endswith(".xlsx"):
+            tkMessageBox.showerror("K Means Clustering","Please browse an xlsx file")
+            self.cluster['state']='disabled'
+            return False   
+        return True
     def browse(self):
         filename = askopenfilename() # show an "Open" dialog box and return the path to the selected file
         self.entryfile.insert(0,filename)
+        self.path=filename
 
-# model.cluster()
-# model.scatter()
-# model.worldMap()
 root = Tk()
 my_gui = Clustering(root)
 root.mainloop()
